@@ -5,10 +5,14 @@
 #include <ncurses.h>
 #include <panel.h>
 #include <pty.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+int curr_ent = 0;
 
 // the size of the entries array
 int arr_size = 0;
@@ -55,6 +59,27 @@ void new_win(int nh, int nw) {
   insert(win_id++, win);
 };
 
+void highlight_ent(char *str, WINDOW *win) {
+  size_t charc = strlen(str);
+  chtype ch;
+  int y, x;
+  getyx(win, y, x);
+  for (int i = 0; i < charc; i++) {
+    ch = mvwinch(win, y, x + i);
+    mvwaddch(win, y, x + i, ch | A_REVERSE);
+  }
+}
+void rm_highlight(char *str, WINDOW *win) {
+  size_t charc = strlen(str);
+  chtype ch;
+  int y, x;
+  getyx(win, y, x);
+  for (int i = 0; i < charc; i++) {
+    ch = mvwinch(win, y, x + i);
+    mvwaddch(win, y, x + i, ch & ~A_REVERSE);
+  }
+}
+
 // displays entries on the *win
 void display(entry entries[], WINDOW *win) {
 
@@ -62,20 +87,33 @@ void display(entry entries[], WINDOW *win) {
     printf("No active window");
     exit(1);
   }
+
   for (int y = 0; y < arr_size; y++) {
 
     if (y <= arr_size) {
 
-      mvwprintw(win, y + y_offset_ent, x_offset_ent, "%s", entries[y].name);
+      char *ent_buff = malloc(sizeof(char));
+      strcpy(ent_buff, entries[y].name);
+      if (entries[y].is_dir) {
+        strcat(ent_buff, "/");
+        entries[y].name = ent_buff;
+      }
+
+      mvwprintw(win, y + y_offset_ent, x_offset_ent, "%s", ent_buff);
       wrefresh(win);
     }
   }
 
   wmove(win, y_offset_ent, x_offset_ent);
+  highlight_ent(entries[curr_ent].name, win);
+  wmove(win, y_offset_ent, x_offset_ent);
+
+  mvwprintw(win, y_offset_ent, x_offset_ent - 1, ">");
+
   wrefresh(win);
 
   while ((chh = wgetch(win)) != 'q') {
-    get_strokes(chh, win);
+    get_strokes(chh, win, entries);
   }
 
   endwin();
@@ -83,24 +121,56 @@ void display(entry entries[], WINDOW *win) {
 
 // reads the strokes from wgetch and perform the up and down navigation between
 // the entries
-void get_strokes(int chh, WINDOW *win) {
 
-  static int y, x;
-  getyx(win, y, x);
+void get_strokes(int chh, WINDOW *win, entry entries[]) {
+
+  ptr_pos *prev = malloc(sizeof(&prev));
+
+  int y, x;
+
+  getyx(win, prev->y, prev->x);
+  x = prev->x;
+
   switch (chh) {
   case KEY_UP:
-    if (y == y_offset_ent) {
+
+    if (prev->y == y_offset_ent) {
       break;
     }
-    mvprintw(y - 1, x - 1, ">");
-    wmove(win, y - 1, x);
+
+    if (prev) {
+      rm_highlight(entries[curr_ent].name, win);
+      mvwprintw(win, prev->y, prev->x - 1, " ");
+      wrefresh(win);
+    }
+    mvwprintw(win, prev->y - 1, prev->x - 1, ">");
+    wmove(win, prev->y - 1, x);
+    curr_ent--;
+    highlight_ent(entries[curr_ent].name, win);
+    wmove(win, prev->y - 1, prev->x);
+
+    prev->y = prev->y - 1;
+
     break;
   case KEY_DOWN:
-    if (y == arr_size) {
+    if (prev->y == arr_size) {
+
       break;
     }
-    mvprintw(y + 1, x - 1, ">");
-    wmove(win, y + 1, x);
+    if (prev) {
+
+      rm_highlight(entries[curr_ent].name, win);
+      mvwprintw(win, prev->y, prev->x - 1, " ");
+      wrefresh(win);
+    }
+
+    mvwprintw(win, prev->y + 1, prev->x - 1, ">");
+    wmove(win, prev->y + 1, x);
+    curr_ent++;
+    highlight_ent(entries[curr_ent].name, win);
+    wmove(win, prev->y + 1, prev->x);
+
+    prev->y = prev->y - 1;
     break;
   }
 }

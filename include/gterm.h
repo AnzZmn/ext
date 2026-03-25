@@ -11,6 +11,11 @@ typedef struct {
   bool is_dir;
 } entry;
 
+typedef struct {
+  int x;
+  int y;
+} ptr_pos;
+
 extern int win_id;
 
 extern int arr_size;
@@ -30,6 +35,6 @@ void new_win(int nh, int nw);
 
 void init_mainscr();
 
-void get_strokes(int chh, WINDOW *win);
+void get_strokes(int chh, WINDOW *win, entry entries[]);
 
 #endif

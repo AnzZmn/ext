@@ -1,14 +1,19 @@
 #include "../include/gterm.h"
 #include "../include/hasht.h"
+#include <asm-generic/errno-base.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <ncurses.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+const char *IGN_DIR_1 = ".";
+const char *IGN_DIR_2 = "..";
 // stores all the file entries
 entry *new_entry = NULL;
 
@@ -37,12 +42,28 @@ int main(int argc, char *argv[]) {
       new_entry = malloc((arr_size + 1) * sizeof(entry));
 
       new_entry->id = id;
-      new_entry->name = cDirent->d_name;
 
-      new_entry->is_dir = true;
-      entries[arr_size++] = *new_entry;
+      // ignoring IGN_DIR_1 & IGN_DIR_2
 
-      id++;
+      if (strcmp(cDirent->d_name, IGN_DIR_1) != 0 &&
+          strcmp(cDirent->d_name, IGN_DIR_2) != 0) {
+
+        new_entry->name = cDirent->d_name;
+
+        DIR *ent = opendir(new_entry->name);
+
+        if (ent == NULL && errno == ENOTDIR) {
+
+          new_entry->is_dir = false;
+
+        } else {
+          new_entry->is_dir = true;
+        }
+
+        entries[arr_size++] = *new_entry;
+
+        id++;
+      }
     }
 
     new_win(std_height - h_offset, std_width - w_offset);
