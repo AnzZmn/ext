@@ -1,3 +1,4 @@
+#include "../include/files.h"
 #include "../include/gterm.h"
 #include "../include/hasht.h"
 #include <asm-generic/errno-base.h>

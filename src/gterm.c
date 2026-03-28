@@ -1,4 +1,5 @@
 #include "../include/gterm.h"
+#include "../include/files.h"
 #include "../include/hasht.h"
 #include <curses.h>
 #include <fcntl.h>
@@ -12,6 +13,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+// id of the cuurent entry pointed
 int curr_ent = 0;
 
 // the size of the entries array
@@ -47,7 +49,6 @@ void init_mainscr() {
 
 // initializes *win
 void new_win(int nh, int nw) {
-
   init_mainscr();
   getmaxyx(stdscr, std_height, std_width);
   nh = std_height - h_offset;
@@ -59,26 +60,24 @@ void new_win(int nh, int nw) {
   insert(win_id++, win);
 };
 
-void highlight_ent(char *str, WINDOW *win) {
-  size_t charc = strlen(str);
+void highlight_ent(char *str, WINDOW *win, bool dir, bool rm) {
+  size_t charc = dir ? strlen(str) - 1 : strlen(str);
   chtype ch;
   int y, x;
   getyx(win, y, x);
   for (int i = 0; i < charc; i++) {
     ch = mvwinch(win, y, x + i);
-    mvwaddch(win, y, x + i, ch | A_REVERSE);
+    if (rm) {
+
+      mvwaddch(win, y, x + i, ch & ~A_REVERSE);
+    } else {
+
+      mvwaddch(win, y, x + i, ch | A_REVERSE);
+    }
   }
 }
-void rm_highlight(char *str, WINDOW *win) {
-  size_t charc = strlen(str);
-  chtype ch;
-  int y, x;
-  getyx(win, y, x);
-  for (int i = 0; i < charc; i++) {
-    ch = mvwinch(win, y, x + i);
-    mvwaddch(win, y, x + i, ch & ~A_REVERSE);
-  }
-}
+
+void color_ent() {}
 
 // displays entries on the *win
 void display(entry entries[], WINDOW *win) {
@@ -105,7 +104,7 @@ void display(entry entries[], WINDOW *win) {
   }
 
   wmove(win, y_offset_ent, x_offset_ent);
-  highlight_ent(entries[curr_ent].name, win);
+  highlight_ent(entries[curr_ent].name, win, entries[curr_ent].is_dir, false);
   wmove(win, y_offset_ent, x_offset_ent);
 
   mvwprintw(win, y_offset_ent, x_offset_ent - 1, ">");
@@ -139,14 +138,15 @@ void get_strokes(int chh, WINDOW *win, entry entries[]) {
     }
 
     if (prev) {
-      rm_highlight(entries[curr_ent].name, win);
+      highlight_ent(entries[curr_ent].name, win, entries[curr_ent].is_dir,
+                    true);
       mvwprintw(win, prev->y, prev->x - 1, " ");
       wrefresh(win);
     }
     mvwprintw(win, prev->y - 1, prev->x - 1, ">");
     wmove(win, prev->y - 1, x);
     curr_ent--;
-    highlight_ent(entries[curr_ent].name, win);
+    highlight_ent(entries[curr_ent].name, win, entries[curr_ent].is_dir, false);
     wmove(win, prev->y - 1, prev->x);
 
     prev->y = prev->y - 1;
@@ -159,7 +159,8 @@ void get_strokes(int chh, WINDOW *win, entry entries[]) {
     }
     if (prev) {
 
-      rm_highlight(entries[curr_ent].name, win);
+      highlight_ent(entries[curr_ent].name, win, entries[curr_ent].is_dir,
+                    true);
       mvwprintw(win, prev->y, prev->x - 1, " ");
       wrefresh(win);
     }
@@ -167,7 +168,7 @@ void get_strokes(int chh, WINDOW *win, entry entries[]) {
     mvwprintw(win, prev->y + 1, prev->x - 1, ">");
     wmove(win, prev->y + 1, x);
     curr_ent++;
-    highlight_ent(entries[curr_ent].name, win);
+    highlight_ent(entries[curr_ent].name, win, entries[curr_ent].is_dir, false);
     wmove(win, prev->y + 1, prev->x);
 
     prev->y = prev->y - 1;
