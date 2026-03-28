@@ -50,10 +50,16 @@ void init_mainscr() {
 // initializes *win
 void new_win(int nh, int nw) {
   init_mainscr();
+  curs_set(0);
+  start_color();
+  use_default_colors();
+
   getmaxyx(stdscr, std_height, std_width);
   nh = std_height - h_offset;
   nw = std_width - w_offset;
   WINDOW *win = newwin(nh, nw, 0, 0);
+  init_pair(1, COLOR_RED, -1);
+  init_pair(2, COLOR_BLUE, -1);
   box(win, ACS_VLINE, ACS_HLINE);
   noecho();
   keypad(win, TRUE);
@@ -61,7 +67,7 @@ void new_win(int nh, int nw) {
 };
 
 void highlight_ent(char *str, WINDOW *win, bool dir, bool rm) {
-  size_t charc = dir ? strlen(str) - 1 : strlen(str);
+  size_t charc = strlen(str);
   chtype ch;
   int y, x;
   getyx(win, y, x);
@@ -91,14 +97,19 @@ void display(entry entries[], WINDOW *win) {
 
     if (y <= arr_size) {
 
-      char *ent_buff = malloc(sizeof(char));
-      strcpy(ent_buff, entries[y].name);
       if (entries[y].is_dir) {
-        strcat(ent_buff, "/");
-        entries[y].name = ent_buff;
+        wattron(win, COLOR_PAIR(1));
+        mvwprintw(win, y + y_offset_ent, x_offset_ent, "%s", entries[y].name);
+        wattroff(win, COLOR_PAIR(1));
+        wattron(win, COLOR_PAIR(2));
+        wprintw(win, "/");
+        wattroff(win, COLOR_PAIR(2));
+        wrefresh(win);
       }
 
-      mvwprintw(win, y + y_offset_ent, x_offset_ent, "%s", ent_buff);
+      wattron(win, COLOR_PAIR(1));
+      mvwprintw(win, y + y_offset_ent, x_offset_ent, "%s", entries[y].name);
+      wattroff(win, COLOR_PAIR(1));
       wrefresh(win);
     }
   }
@@ -131,6 +142,7 @@ void get_strokes(int chh, WINDOW *win, entry entries[]) {
   x = prev->x;
 
   switch (chh) {
+    // KEY_UP PRESSED
   case KEY_UP:
 
     if (prev->y == y_offset_ent) {
@@ -152,11 +164,13 @@ void get_strokes(int chh, WINDOW *win, entry entries[]) {
     prev->y = prev->y - 1;
 
     break;
+    // KE_DOWN PRESSED
   case KEY_DOWN:
     if (prev->y == arr_size) {
 
       break;
     }
+
     if (prev) {
 
       highlight_ent(entries[curr_ent].name, win, entries[curr_ent].is_dir,
